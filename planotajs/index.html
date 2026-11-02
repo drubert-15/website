@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="lv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Plānotājs</title>
+  <meta name="description" content="Dienasgrāmata un plānotājs ar atgādinājumiem.">
+  <meta name="theme-color" content="#0a0f1e">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Plānotājs<em>tava dienasgrāmata</em></h1>
+    <button id="notifyBtn" class="chip" type="button">Paziņojumi</button>
+  </header>
+
+  <div id="player" class="player"></div>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-view="list" type="button"><span data-icon="calendar"></span>Dienas</button>
+    <button class="tab" data-view="add" type="button"><span data-icon="plus"></span>Jauns</button>
+    <button class="tab" data-view="dump" type="button"><span data-icon="inbox"></span>Iemest</button>
+    <button class="tab" data-view="quests" type="button"><span data-icon="target"></span>Questi</button>
+    <button class="tab" data-view="tree" type="button"><span data-icon="tree"></span>Koks</button>
+  </nav>
+
+  <main>
+    <!-- Dienasgrāmata -->
+    <section id="view-list" class="view active">
+      <div id="installHint" class="card install" hidden>
+        <strong><i data-icon="phone"></i> Pievieno sākuma ekrānam</strong>
+        <p class="hint">Safari: spied <b>Kopīgot</b> (kvadrāts ar bultu) → <b>Pievienot sākuma ekrānam</b>. Tikai tā iPhone sūtīs paziņojumus.</p>
+        <button type="button" class="secondary" id="hideInstall">Sapratu</button>
+      </div>
+      <div id="shelves" class="shelves"></div>
+      <label class="toggle"><input type="checkbox" id="showDone"> Rādīt izpildītos</label>
+      <div id="list"></div>
+      <div class="actions">
+        <button id="exportAll" class="secondary" type="button"><i data-icon="calPlus"></i> Pievienot telefona kalendāram</button>
+      </div>
+    </section>
+
+    <!-- Jauns uzdevums -->
+    <section id="view-add" class="view">
+      <form id="taskForm" class="card">
+        <input type="hidden" name="id">
+        <label>Kas jāizdara?
+          <input name="title" required placeholder="Piem., Zobārsts">
+        </label>
+        <div class="row">
+          <label>Datums <input name="date" type="date" required></label>
+          <label>Laiks <input name="time" type="time" required></label>
+        </div>
+        <div class="row">
+          <label>Plauktiņš
+            <select name="category"></select>
+          </label>
+          <label>Atgādināt
+            <select name="remind">
+              <option value="0">Tieši laikā</option>
+              <option value="5">5 min pirms</option>
+              <option value="15" selected>15 min pirms</option>
+              <option value="30">30 min pirms</option>
+              <option value="60">1 h pirms</option>
+              <option value="180">3 h pirms</option>
+              <option value="1440">1 dienu pirms</option>
+            </select>
+          </label>
+        </div>
+        <label>Svarīgums
+          <select name="priority">
+            <option value="auto">Lai aplikācija izlemj</option>
+            <option value="3">Svarīgi</option>
+            <option value="2">Vidēji</option>
+            <option value="1">Var pagaidīt</option>
+          </select>
+        </label>
+        <label>Atkārtot
+          <select name="repeat">
+            <option value="none">Neatkārtot</option>
+            <option value="daily">Katru dienu</option>
+            <option value="weekly">Katru nedēļu</option>
+            <option value="monthly">Katru mēnesi</option>
+          </select>
+        </label>
+        <label>Apraksts / ko gribi panākt
+          <textarea name="note" rows="3" placeholder="Piem., Sagatavoties eksāmenam: atkārtot konspektus, izpildīt testus…"></textarea>
+        </label>
+        <label>Plāna punkti <small>(katrs savā rindā)</small>
+          <textarea name="steps" rows="4" placeholder="Var atstāt tukšu un spiest „Sastādīt plānu”"></textarea>
+        </label>
+        <button type="button" id="planBtn" class="secondary"><i data-icon="sparkle"></i> Sastādīt plānu no apraksta</button>
+        <div class="actions">
+          <button type="submit">Saglabāt</button>
+          <button type="button" id="cancelEdit" class="secondary" hidden>Atcelt</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="view-quests" class="view"></section>
+    <section id="view-tree" class="view"></section>
+
+    <!-- Iemest tekstu -->
+    <section id="view-dump" class="view">
+      <div class="card">
+        <p class="hint">Iemet šeit jebko — ziņu, e-pastu, savas piezīmes. Aplikācija atradīs uzdevumus, laikus, atkārtojumus („katru dienu”, „katru pirmdienu”, „katru mēnesi”) un saliks pa plauktiņiem. Punkti ar „-” zem uzdevuma kļūst par plāna soļiem.</p>
+        <textarea id="dumpText" rows="9" placeholder="Piem.: Katru dienu 7:00 vingrošana. Rīt 9:00 sapulce ar Jāni par budžetu. Piektdien plkst 18 jāaizved Anna uz treniņu, 15.11. 10:30 zobārsts, neaizmirst nopirkt pienu svētdien no rīta..."></textarea>
+        <div class="row">
+          <label>Kā apstrādāt?
+            <select id="dumpMode">
+              <option value="ai">Ar AI (Claude) — gudrāk, sastāda plānu</option>
+              <option value="local">Bez AI — ātri, telefonā</option>
+            </select>
+          </label>
+        </div>
+        <details id="keyBox">
+          <summary>AI iestatījumi (API atslēga)</summary>
+          <p class="hint">AI režīmam vajag tavu Anthropic API atslēgu (console.anthropic.com). Tā glabājas tikai šajā ierīcē.</p>
+          <input id="apiKey" type="password" placeholder="sk-ant-..." autocomplete="off">
+          <button id="saveKey" type="button" class="secondary">Saglabāt atslēgu</button>
+        </details>
+        <div class="actions">
+          <button id="parseBtn" type="button">Salikt pa plauktiņiem</button>
+        </div>
+        <p id="dumpStatus" class="hint"></p>
+      </div>
+      <div id="dumpResult"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="icons.js"></script>
+  <script src="parser.js"></script>
+  <script src="game.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
