@@ -21,15 +21,24 @@
     <button id="notifyBtn" class="chip" type="button">🔔 Ieslēgt paziņojumus</button>
   </header>
 
+  <div id="player" class="player"></div>
+
   <nav class="tabs" role="tablist">
-    <button class="tab active" data-view="list" type="button">📅 Dienasgrāmata</button>
-    <button class="tab" data-view="add" type="button">＋ Jauns</button>
-    <button class="tab" data-view="dump" type="button">📥 Iemest tekstu</button>
+    <button class="tab active" data-view="list" type="button"><span>📅</span>Dienas</button>
+    <button class="tab" data-view="add" type="button"><span>＋</span>Jauns</button>
+    <button class="tab" data-view="dump" type="button"><span>📥</span>Iemest</button>
+    <button class="tab" data-view="quests" type="button"><span>⚔️</span>Questi</button>
+    <button class="tab" data-view="tree" type="button"><span>🌳</span>Koks</button>
   </nav>
 
   <main>
     <!-- Dienasgrāmata -->
     <section id="view-list" class="view active">
+      <div id="installHint" class="card install" hidden>
+        <strong>📱 Pievieno sākuma ekrānam</strong>
+        <p class="hint">Safari: spied <b>Kopīgot</b> (kvadrāts ar bultu) → <b>Pievienot sākuma ekrānam</b>. Tikai tā iPhone sūtīs paziņojumus.</p>
+        <button type="button" class="secondary" id="hideInstall">Sapratu</button>
+      </div>
       <div id="shelves" class="shelves"></div>
       <label class="toggle"><input type="checkbox" id="showDone"> Rādīt izpildītos</label>
       <div id="list"></div>
@@ -95,6 +104,9 @@
       </form>
     </section>
 
+    <section id="view-quests" class="view"></section>
+    <section id="view-tree" class="view"></section>
+
     <!-- Iemest tekstu -->
     <section id="view-dump" class="view">
       <div class="card">
@@ -126,6 +138,7 @@
   <div id="toast" class="toast" hidden></div>
 
   <script src="parser.js"></script>
+  <script src="game.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

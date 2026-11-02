@@ -45,7 +45,7 @@ function advance(t) {
   t.date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   t.notified = {};
   t.done = false;
-  (t.steps || []).forEach(x => (x.done = false));
+  (t.steps || []).forEach(x => { x.done = false; x.xp = false; });
 }
 // Ja atkārtota uzdevuma laiks pagājis (pirms > 1 h), pāriet uz nākamo reizi.
 function rollRecurring() {
@@ -69,6 +69,8 @@ function showView(name) {
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.view === name));
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
   if (name === 'list') render();
+  if (name === 'quests' || name === 'tree') window.Game.renderAll();
+  window.scrollTo(0, 0);
 }
 document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
 
@@ -116,11 +118,11 @@ function render() {
     if (group !== lastDay) { html += `<div class="day">${byImportance ? esc(group) : dayLabel(t.date)}</div>`; lastDay = group; }
     const overdue = !t.done && startOf(t) < now;
     html += `
-      <div class="task${t.done ? ' done' : ''}${overdue ? ' overdue' : ''}" data-id="${t.id}">
+      <div class="task${t.done ? ' done' : ''}${overdue ? ' overdue' : ''}" data-id="${t.id}" style="--c:${window.Game.colorFor(t.category)}">
         <input type="checkbox" ${t.done ? 'checked' : ''} aria-label="Izpildīts">
         <div class="t-body">
           <div class="t-title">${esc(t.title)}</div>
-          <div class="t-meta"><span class="prio ${PRIO[importance(t)].cls}" title="${PRIO[importance(t)].short}"></span><span class="t-time">${byImportance ? esc(shortDate(t.date)) + ' · ' : ''}${esc(t.time)}</span><span class="tag">${esc(t.category)}</span><span>🔔 ${remindLabel(Number(t.remind))}</span>${t.repeat && t.repeat !== 'none' ? `<span class="rep">🔁 ${REPEAT_LABEL[t.repeat]}</span>` : ''}</div>
+          <div class="t-meta"><span class="prio ${PRIO[importance(t)].cls}" title="${PRIO[importance(t)].short}"></span><span class="t-time">${byImportance ? esc(shortDate(t.date)) + ' · ' : ''}${esc(t.time)}</span><span class="tag" style="--c:${window.Game.colorFor(t.category)}">${esc(t.category)}</span><span>🔔 ${remindLabel(Number(t.remind))}</span>${t.repeat && t.repeat !== 'none' ? `<span class="rep">🔁 ${REPEAT_LABEL[t.repeat]}</span>` : ''}</div>
           ${t.note ? `<div class="t-note">${esc(t.note)}</div>` : ''}
           ${stepsHtml(t)}
         </div>
@@ -148,11 +150,26 @@ $('#showDone').addEventListener('change', render);
 $('#list').addEventListener('click', e => {
   const row = e.target.closest('.task'); if (!row) return;
   const t = tasks.find(x => x.id === row.dataset.id); if (!t) return;
-  if (e.target.dataset.step != null) { t.steps[Number(e.target.dataset.step)].done = e.target.checked; save(); render(); return; }
+  if (e.target.dataset.step != null) {
+    const step = t.steps[Number(e.target.dataset.step)];
+    step.done = e.target.checked;
+    if (step.done && !step.xp) { step.xp = true; window.Game.award(window.Game.CAT_SKILL[t.category] || 'miers', 5, 'solis'); }
+    save(); render(); return;
+  }
   if (e.target.type === 'checkbox') {
     if (e.target.checked && t.repeat && t.repeat !== 'none') {
-      advance(t); toast(`Izdarīts ✓ Nākamā reize: ${t.date.split('-').reverse().join('.')} ${t.time}`);
-    } else t.done = e.target.checked;
+      const gain = window.Game.awardForTask(t.category, t.priority);
+      window.Game.bumpStreak();
+      advance(t); toast(`+${gain} XP ✓ Nākamā reize: ${t.date.split('-').reverse().join('.')} ${t.time}`);
+    } else {
+      t.done = e.target.checked;
+      if (t.done && !t.xpGiven) {
+        t.xpGiven = true;
+        const gain = window.Game.awardForTask(t.category, t.priority);
+        window.Game.bumpStreak();
+        toast(`+${gain} XP ✓`);
+      }
+    }
     save(); render(); return;
   }
   const act = e.target.closest('button')?.dataset.act;
@@ -500,6 +517,14 @@ async function scheduleTriggers() {
     } catch {}
   }
 }
+
+// iPhone: ieteikums pievienot sākuma ekrānam
+try {
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const standalone = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+  if (ios && !standalone && !localStorage.getItem('planotajs.hideInstall')) $('#installHint').hidden = false;
+} catch {}
+$('#hideInstall').addEventListener('click', () => { $('#installHint').hidden = true; try { localStorage.setItem('planotajs.hideInstall', '1'); } catch {} });
 
 checkReminders();
 render();
