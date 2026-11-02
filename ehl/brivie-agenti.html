@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="lv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Brīvie aģenti — EHL</title>
+  <meta name="description" content="Entuziastu Hokeja Līga">
+  <meta name="theme-color" content="#ff7a1a">
+  <link rel="icon" href="https://ehl.entuziasti.com/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="brivie-agenti">
+  <div id="site-header"></div>
+
+  <section class="page-hero">
+    <div class="wrap">
+      <p class="crumb"><a href="index.html">Sākums</a> / Brīvie aģenti</p>
+      <h1>Brīvie aģenti</h1>
+      <p class="sub" id="hero-sub">Spēlētāji, vārtsargi un treneri, kas meklē komandu</p>
+    </div>
+  </section>
+
+  <main class="wrap page">
+    <div class="cta">
+      <div><h3>Meklē komandu?</h3><p>Piesakies kā brīvais aģents un komandas tevi atradīs.</p></div>
+      <a class="btn btn-dark btn-lg" href="mailto:entuziasti@entuziasti.lv">Pieteikties: entuziasti@entuziasti.lv</a>
+    </div>
+    <div class="toolbar">
+      <div class="seg" id="role"></div>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="agent-grid" id="agents"></div>
+  </main>
+
+  <div id="site-footer"></div>
+
+  <script src="data/live.js"></script>
+  <script src="data/agents.js"></script>
+  <script src="js/layout.js"></script>
+  <script src="js/agenti.js"></script>
+</body>
+</html>
