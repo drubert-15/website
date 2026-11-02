@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nana</title>
+  <meta name="description" content="Welcome to Nana's corner of the internet.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="nav">
+    <a class="brand" href="#top">Nana</a>
+    <nav>
+      <a href="#about">About</a>
+      <a href="#favorites">Favorites</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <p class="eyebrow">Hello, and welcome</p>
+      <h1>Nana</h1>
+      <p class="lede">A little corner of the internet for stories, recipes, and the people who make life sweet.</p>
+      <a class="button" href="#about">Get to know me</a>
+    </section>
+
+    <section id="about" class="section about">
+      <div class="portrait" aria-hidden="true">N</div>
+      <div>
+        <h2>About</h2>
+        <p>Write a few sentences here about Nana — where she grew up, what she loves, and the things everyone knows her for.</p>
+        <p>Swap the "N" circle for a favorite photo by replacing it with an <code>&lt;img&gt;</code>.</p>
+      </div>
+    </section>
+
+    <section id="favorites" class="section">
+      <h2>Favorite things</h2>
+      <div class="cards">
+        <article class="card">
+          <span class="icon" aria-hidden="true">🍰</span>
+          <h3>Recipes</h3>
+          <p>The family classics, written down so they're never lost.</p>
+        </article>
+        <article class="card">
+          <span class="icon" aria-hidden="true">🌷</span>
+          <h3>The garden</h3>
+          <p>What's blooming this season and how it all grows.</p>
+        </article>
+        <article class="card">
+          <span class="icon" aria-hidden="true">📖</span>
+          <h3>Stories</h3>
+          <p>Memories and tales worth telling again and again.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="contact" class="section contact">
+      <h2>Say hello</h2>
+      <p>Have a story or a recipe to share? Send a note.</p>
+      <a class="button" href="mailto:hello@example.com">Send an email</a>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Made with love · <span id="year"></span></p>
+  </footer>
+
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</body>
+</html>
