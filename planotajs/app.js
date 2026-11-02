@@ -227,13 +227,13 @@ resetForm();
 $('#planBtn').addEventListener('click', async () => {
   const title = form.title.value.trim(), note = form.note.value.trim();
   if (!title && !note) return toast('Vispirms uzraksti, kas jāizdara');
-  const key = (() => { try { return localStorage.getItem(KEY_STORE) || ''; } catch { return ''; } })();
+  const key = (() => { try { const k = cleanKey(localStorage.getItem(KEY_STORE)); return keyProblem(k) ? '' : k; } catch { return ''; } })();
   const btn = $('#planBtn');
   let steps = [];
   if (key) {
     btn.disabled = true; btn.textContent = 'Sastādu plānu…';
     try { steps = await planWithClaude(title, note, form.repeat.value, key); }
-    catch (err) { toast('AI neizdevās, sadalu vienkārši'); }
+    catch (err) { toast('AI neizdevās: ' + aiErrorText(err)); }
     finally { btn.disabled = false; btn.innerHTML = icon('sparkle') + ' Sastādīt plānu no apraksta'; }
   }
   if (!steps.length) steps = window.LocalParser.splitSteps(note || title);
@@ -245,8 +245,38 @@ $('#planBtn').addEventListener('click', async () => {
 // ---------- Iemest tekstu ----------
 const keyInput = $('#apiKey');
 try { keyInput.value = localStorage.getItem(KEY_STORE) || ''; } catch {}
+
+// Notīra ielīmēto atslēgu (atstarpes, pēdiņas, neredzamas rakstzīmes) un pārbauda formātu.
+function cleanKey(raw) {
+  return String(raw || '').replace(/[\s"'`“”‘’<>\u200B-\u200D\uFEFF]/g, '');
+}
+function keyProblem(key) {
+  if (!key) return 'Ievadi API atslēgu.';
+  if (/^sk-ant-oat/.test(key)) return 'Šis ir Claude abonementa (pieteikšanās) tokens, nevis API atslēga. Izveido API atslēgu: platform.claude.com → API Keys.';
+  if (/^sk-(proj|svc)?-?(?!ant)/.test(key) && !key.startsWith('sk-ant-')) return 'Šī izskatās pēc citas firmas (piem., OpenAI) atslēgas. Vajag Anthropic atslēgu, kas sākas ar „sk-ant-api”.';
+  if (!key.startsWith('sk-ant-api')) return 'Atslēgai jāsākas ar „sk-ant-api…”. Pārbaudi, vai nokopēji visu atslēgu.';
+  if (key.length < 60) return 'Atslēga izskatās nepilnīga — nokopē to vēlreiz visu.';
+  return '';
+}
+function aiErrorText(err) {
+  const st = err && err.status;
+  const msg = String((err && err.message) || err || '');
+  if (st === 401 || /authentication|bearer|x-api-key/i.test(msg)) return 'API atslēga nav derīga (iespējams, dzēsta vai nokopēta nepilnīgi). Izveido jaunu atslēgu platform.claude.com un ielīmē vēlreiz.';
+  if (st === 403) return 'Šai atslēgai nav piekļuves. Pārbaudi Anthropic konta iestatījumus.';
+  if (/credit|billing|balance/i.test(msg) || st === 402) return 'Anthropic kontā nav kredīta. Papildini to platform.claude.com → Billing.';
+  if (st === 429) return 'Pārāk daudz pieprasījumu. Pamēģini pēc minūtes.';
+  if (st >= 500) return 'Claude serveris šobrīd nav pieejams. Pamēģini vēlāk.';
+  if (/fetch|network|Failed to/i.test(msg)) return 'Nav interneta savienojuma ar Claude.';
+  return msg;
+}
+window.App = { cleanKey, keyProblem, aiErrorText };
+
 $('#saveKey').addEventListener('click', () => {
-  try { localStorage.setItem(KEY_STORE, keyInput.value.trim()); toast('Atslēga saglabāta'); } catch { toast('Neizdevās saglabāt'); }
+  const key = cleanKey(keyInput.value);
+  keyInput.value = key;
+  const problem = keyProblem(key);
+  if (problem) return toast(problem);
+  try { localStorage.setItem(KEY_STORE, key); toast('Atslēga saglabāta'); } catch { toast('Neizdevās saglabāt'); }
 });
 
 let preview = [];
@@ -258,12 +288,16 @@ $('#parseBtn').addEventListener('click', async () => {
   const btn = $('#parseBtn');
   let result;
   if (mode === 'ai') {
-    const key = keyInput.value.trim();
+    const key = cleanKey(keyInput.value);
+    keyInput.value = key;
+    const problem = keyProblem(key);
+    if (problem) { $('#keyBox').open = true; status.textContent = problem; return; }
+    try { localStorage.setItem(KEY_STORE, key); } catch {}
     if (!key) { $('#keyBox').open = true; return toast('Ievadi API atslēgu vai izvēlies „Bez AI”'); }
     btn.disabled = true; status.textContent = 'AI lasa tekstu…';
     try { result = await parseWithClaude(text, key); }
     catch (err) {
-      status.textContent = `AI neizdevās (${err.message || err}). Izmantoju ātro režīmu.`;
+      status.textContent = `AI neizdevās: ${aiErrorText(err)} Pagaidām izmantoju ātro režīmu.`;
       result = window.LocalParser.parse(text);
     } finally { btn.disabled = false; }
     if (result && !status.textContent.startsWith('AI neizdevās')) status.textContent = '';

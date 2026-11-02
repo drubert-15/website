@@ -274,8 +274,9 @@
   // ---------- AI personalizēti questi ----------
   async function personalize() {
     let key = '';
-    try { key = localStorage.getItem(KEY_STORE) || ''; } catch {}
-    if (!key) return toast('Ievadi API atslēgu sadaļā „Iemest” → AI iestatījumi');
+    try { key = window.App ? window.App.cleanKey(localStorage.getItem(KEY_STORE)) : localStorage.getItem(KEY_STORE) || ''; } catch {}
+    const problem = window.App ? window.App.keyProblem(key) : (key ? '' : 'x');
+    if (problem) return toast(key ? problem : 'Ievadi API atslēgu sadaļā „Iemest” → AI iestatījumi');
     const btn = document.querySelector('#aiQuests');
     btn.disabled = true; btn.textContent = 'Domāju, kas tev der…';
     try {
@@ -338,7 +339,7 @@
       save(); renderAll();
       toast(`Questi pielāgoti${user.name ? ' tev, ' + user.name : ''}`);
     } catch (e) {
-      toast('AI neizdevās: ' + (e.message || e));
+      toast('AI neizdevās: ' + (window.App ? window.App.aiErrorText(e) : e.message || e));
     } finally {
       btn.disabled = false; btn.innerHTML = icon('sparkle') + ' Personalizēt ar AI';
     }
