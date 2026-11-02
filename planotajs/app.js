@@ -21,7 +21,7 @@ const remindAt = t => new Date(startOf(t).getTime() - (Number(t.remind) || 0) * 
 function addTask(t) {
   tasks.push({ id: uid(), done: false, notified: {}, remind: 15, note: '', category: 'Cits', repeat: 'none', steps: [], ...t });
 }
-const PRIO = { 3: { label: '🔥 Svarīgi', short: 'svarīgi', cls: 'p3' }, 2: { label: '● Vidēji', short: 'vidēji', cls: 'p2' }, 1: { label: '○ Var pagaidīt', short: 'var pagaidīt', cls: 'p1' } };
+const PRIO = { 3: { label: 'Svarīgi', short: 'svarīgi', cls: 'p3' }, 2: { label: 'Vidēji', short: 'vidēji', cls: 'p2' }, 1: { label: 'Var pagaidīt', short: 'var pagaidīt', cls: 'p1' } };
 // Efektīvais svarīgums: tuvojošies (< 24 h) vai nokavēti uzdevumi paceļas par līmeni.
 function importance(t) {
   const base = Number(t.priority) || 2;
@@ -94,19 +94,19 @@ function render() {
   const showDone = $('#showDone').checked;
   const counts = { Visi: tasks.filter(t => !t.done).length };
   SHELVES.forEach(c => (counts[c] = tasks.filter(t => !t.done && t.category === c).length));
-  counts['🔁 Regulārie'] = tasks.filter(t => t.repeat && t.repeat !== 'none').length;
-  $('#shelves').innerHTML = ['Visi', '🔁 Regulārie', ...SHELVES]
+  counts['Regulārie'] = tasks.filter(t => t.repeat && t.repeat !== 'none').length;
+  $('#shelves').innerHTML = ['Visi', 'Regulārie', ...SHELVES]
     .filter(c => c === 'Visi' || counts[c])
     .map(c => `<button class="chip${c === activeShelf ? ' active' : ''}" data-shelf="${esc(c)}">${esc(c)} · ${counts[c]}</button>`)
     .join('');
   $('#shelves').querySelectorAll('[data-shelf]').forEach(b => b.addEventListener('click', () => { activeShelf = b.dataset.shelf; render(); }));
 
   const list = tasks
-    .filter(t => (showDone || !t.done) && (activeShelf === 'Visi' || t.category === activeShelf || (activeShelf === '🔁 Regulārie' && t.repeat && t.repeat !== 'none')))
+    .filter(t => (showDone || !t.done) && (activeShelf === 'Visi' || t.category === activeShelf || (activeShelf === 'Regulārie' && t.repeat && t.repeat !== 'none')))
     .sort((a, b) => startOf(a) - startOf(b));
 
   if (!list.length) {
-    $('#list').innerHTML = `<div class="empty">Te vēl nekā nav.<br>Pievieno uzdevumu vai iemet tekstu 📥</div>`;
+    $('#list').innerHTML = `<div class="empty">Te vēl nekā nav.<br>Pievieno uzdevumu vai iemet tekstu</div>`;
     return;
   }
   const now = new Date();
@@ -115,21 +115,24 @@ function render() {
   let html = '', lastDay = '';
   for (const t of list) {
     const group = byImportance ? (t.done ? 'Izpildīti' : PRIO[importance(t)].label) : t.date;
-    if (group !== lastDay) { html += `<div class="day">${byImportance ? esc(group) : dayLabel(t.date)}</div>`; lastDay = group; }
+    if (group !== lastDay) {
+      const head = !byImportance ? dayLabel(t.date) : t.done ? esc(group) : `<span class="prio ${PRIO[importance(t)].cls}"></span>${esc(group)}`;
+      html += `<div class="day">${head}</div>`; lastDay = group;
+    }
     const overdue = !t.done && startOf(t) < now;
     html += `
       <div class="task${t.done ? ' done' : ''}${overdue ? ' overdue' : ''}" data-id="${t.id}" style="--c:${window.Game.colorFor(t.category)}">
         <input type="checkbox" ${t.done ? 'checked' : ''} aria-label="Izpildīts">
         <div class="t-body">
           <div class="t-title">${esc(t.title)}</div>
-          <div class="t-meta"><span class="prio ${PRIO[importance(t)].cls}" title="${PRIO[importance(t)].short}"></span><span class="t-time">${byImportance ? esc(shortDate(t.date)) + ' · ' : ''}${esc(t.time)}</span><span class="tag" style="--c:${window.Game.colorFor(t.category)}">${esc(t.category)}</span><span>🔔 ${remindLabel(Number(t.remind))}</span>${t.repeat && t.repeat !== 'none' ? `<span class="rep">🔁 ${REPEAT_LABEL[t.repeat]}</span>` : ''}</div>
+          <div class="t-meta"><span class="prio ${PRIO[importance(t)].cls}" title="${PRIO[importance(t)].short}"></span><span class="t-time">${byImportance ? esc(shortDate(t.date)) + ' · ' : ''}${esc(t.time)}</span><span class="tag" style="--c:${window.Game.colorFor(t.category)}">${esc(t.category)}</span><span class="ic-t">${icon('bell')}${remindLabel(Number(t.remind))}</span>${t.repeat && t.repeat !== 'none' ? `<span class="rep ic-t">${icon('repeat')}${REPEAT_LABEL[t.repeat]}</span>` : ''}</div>
           ${t.note ? `<div class="t-note">${esc(t.note)}</div>` : ''}
           ${stepsHtml(t)}
         </div>
         <div class="t-actions">
-          <button data-act="edit" aria-label="Labot">✏️</button>
-          <button data-act="ics" aria-label="Uz kalendāru">📆</button>
-          <button data-act="del" class="danger" aria-label="Dzēst">🗑</button>
+          <button data-act="edit" aria-label="Labot">${icon('edit')}</button>
+          <button data-act="ics" aria-label="Uz kalendāru">${icon('calPlus')}</button>
+          <button data-act="del" class="danger" aria-label="Dzēst">${icon('trash')}</button>
         </div>
       </div>`;
   }
@@ -228,10 +231,10 @@ $('#planBtn').addEventListener('click', async () => {
   const btn = $('#planBtn');
   let steps = [];
   if (key) {
-    btn.disabled = true; btn.textContent = '✨ Sastādu plānu…';
+    btn.disabled = true; btn.textContent = 'Sastādu plānu…';
     try { steps = await planWithClaude(title, note, form.repeat.value, key); }
     catch (err) { toast('AI neizdevās, sadalu vienkārši'); }
-    finally { btn.disabled = false; btn.textContent = '✨ Sastādīt plānu no apraksta'; }
+    finally { btn.disabled = false; btn.innerHTML = icon('sparkle') + ' Sastādīt plānu no apraksta'; }
   }
   if (!steps.length) steps = window.LocalParser.splitSteps(note || title);
   if (!steps.length) return toast('Uzraksti aprakstu ar vairāk detaļām');
@@ -257,7 +260,7 @@ $('#parseBtn').addEventListener('click', async () => {
   if (mode === 'ai') {
     const key = keyInput.value.trim();
     if (!key) { $('#keyBox').open = true; return toast('Ievadi API atslēgu vai izvēlies „Bez AI”'); }
-    btn.disabled = true; status.textContent = '✨ AI lasa tekstu…';
+    btn.disabled = true; status.textContent = 'AI lasa tekstu…';
     try { result = await parseWithClaude(text, key); }
     catch (err) {
       status.textContent = `AI neizdevās (${err.message || err}). Izmantoju ātro režīmu.`;
@@ -279,7 +282,7 @@ function renderPreview(summary) {
   let html = `<div class="summary"><strong>Kopsavilkums:</strong> ${esc(summary)}</div><div class="preview">`;
   for (const cat of SHELVES) {
     if (!byShelf[cat]) continue;
-    html += `<div class="day">📁 ${esc(cat)}</div>`;
+    html += `<div class="day"><span class="dot" style="--c:${window.Game.colorFor(cat)}"></span>${esc(cat)}</div>`;
     for (const i of byShelf[cat]) {
       const t = preview[i];
       html += `
@@ -296,10 +299,10 @@ function renderPreview(summary) {
               <select data-f="priority">${[3, 2, 1].map(p => `<option value="${p}"${p === Number(t.priority) ? ' selected' : ''}>${PRIO[p].label}</option>`).join('')}</select>
             </div>
             <div class="row" style="margin-top:6px">
-              <select data-f="repeat">${['none', 'daily', 'weekly', 'monthly'].map(r => `<option value="${r}"${r === t.repeat ? ' selected' : ''}>${r === 'none' ? 'Vienreiz' : '🔁 ' + REPEAT_LABEL[r]}</option>`).join('')}</select>
+              <select data-f="repeat">${['none', 'daily', 'weekly', 'monthly'].map(r => `<option value="${r}"${r === t.repeat ? ' selected' : ''}>${r === 'none' ? 'Vienreiz' : REPEAT_LABEL[r][0].toUpperCase() + REPEAT_LABEL[r].slice(1)}</option>`).join('')}</select>
             </div>
             ${t.steps.length ? `<ul class="steps">${t.steps.map(x => `<li><span>• ${esc(x)}</span></li>`).join('')}</ul>` : ''}
-            ${t.uncertain ? '<div class="t-meta" style="color:var(--warn)">⚠ Pārbaudi datumu/laiku</div>' : ''}
+            ${t.uncertain ? `<div class="t-meta ic-t" style="color:var(--warn)">${icon('alert')}Pārbaudi datumu/laiku</div>` : ''}
           </div>
         </div>`;
     }
@@ -453,9 +456,9 @@ if ('serviceWorker' in navigator) {
 }
 function updateNotifyBtn() {
   const btn = $('#notifyBtn');
-  if (!('Notification' in window)) { btn.textContent = '🔕 Nav atbalstīts'; btn.disabled = true; return; }
+  if (!('Notification' in window)) { btn.innerHTML = icon('bellOff') + ' Nav atbalstīts'; btn.disabled = true; return; }
   const p = Notification.permission;
-  btn.textContent = p === 'granted' ? '🔔 Paziņojumi ieslēgti' : p === 'denied' ? '🔕 Bloķēti' : '🔔 Ieslēgt paziņojumus';
+  btn.innerHTML = p === 'granted' ? icon('bell') + ' Ieslēgti' : p === 'denied' ? icon('bellOff') + ' Bloķēti' : icon('bell') + ' Ieslēgt';
   btn.classList.toggle('active', p === 'granted');
 }
 $('#notifyBtn').addEventListener('click', async () => {
@@ -489,12 +492,12 @@ function checkReminders() {
     const rem = remindAt(t).getTime();
     if (!t.notified.remind && rem <= now && now - rem < 6 * 3600000) {
       const when = Number(t.remind) ? `pēc ${remindLabel(Number(t.remind))} · ${t.time}` : `tagad · ${t.time}`;
-      notify(`⏰ ${t.title}`, `${when}${t.note ? '\n' + t.note : ''}`, t.id + '-r');
+      notify(t.title, `${when}${t.note ? '\n' + t.note : ''}`, t.id + '-r');
       t.notified.remind = true; changed = true;
       if (!Number(t.remind)) t.notified.start = true;
     }
     if (!t.notified.start && start <= now && now - start < 6 * 3600000) {
-      notify(`📌 Tagad: ${t.title}`, t.note || t.category, t.id + '-s');
+      notify(`Tagad: ${t.title}`, t.note || t.category, t.id + '-s');
       t.notified.start = true; changed = true;
     }
   }
@@ -511,7 +514,7 @@ async function scheduleTriggers() {
     const at = remindAt(t).getTime();
     if (t.done || at <= Date.now()) continue;
     try {
-      await swReg.showNotification(`⏰ ${t.title}`, {
+      await swReg.showNotification(t.title, {
         tag: t.id + '-r', body: `${t.time} · ${t.category}`, icon: 'icon.svg', showTrigger: new TimestampTrigger(at),
       });
     } catch {}

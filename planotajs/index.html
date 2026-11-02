@@ -18,24 +18,24 @@
 <body>
   <header class="top">
     <h1>Plānotājs<em>tava dienasgrāmata</em></h1>
-    <button id="notifyBtn" class="chip" type="button">🔔 Ieslēgt paziņojumus</button>
+    <button id="notifyBtn" class="chip" type="button">Paziņojumi</button>
   </header>
 
   <div id="player" class="player"></div>
 
   <nav class="tabs" role="tablist">
-    <button class="tab active" data-view="list" type="button"><span>📅</span>Dienas</button>
-    <button class="tab" data-view="add" type="button"><span>＋</span>Jauns</button>
-    <button class="tab" data-view="dump" type="button"><span>📥</span>Iemest</button>
-    <button class="tab" data-view="quests" type="button"><span>⚔️</span>Questi</button>
-    <button class="tab" data-view="tree" type="button"><span>🌳</span>Koks</button>
+    <button class="tab active" data-view="list" type="button"><span data-icon="calendar"></span>Dienas</button>
+    <button class="tab" data-view="add" type="button"><span data-icon="plus"></span>Jauns</button>
+    <button class="tab" data-view="dump" type="button"><span data-icon="inbox"></span>Iemest</button>
+    <button class="tab" data-view="quests" type="button"><span data-icon="target"></span>Questi</button>
+    <button class="tab" data-view="tree" type="button"><span data-icon="tree"></span>Koks</button>
   </nav>
 
   <main>
     <!-- Dienasgrāmata -->
     <section id="view-list" class="view active">
       <div id="installHint" class="card install" hidden>
-        <strong>📱 Pievieno sākuma ekrānam</strong>
+        <strong><i data-icon="phone"></i> Pievieno sākuma ekrānam</strong>
         <p class="hint">Safari: spied <b>Kopīgot</b> (kvadrāts ar bultu) → <b>Pievienot sākuma ekrānam</b>. Tikai tā iPhone sūtīs paziņojumus.</p>
         <button type="button" class="secondary" id="hideInstall">Sapratu</button>
       </div>
@@ -43,7 +43,7 @@
       <label class="toggle"><input type="checkbox" id="showDone"> Rādīt izpildītos</label>
       <div id="list"></div>
       <div class="actions">
-        <button id="exportAll" class="secondary" type="button">📆 Visus uz telefona kalendāru (.ics)</button>
+        <button id="exportAll" class="secondary" type="button"><i data-icon="calPlus"></i> Pievienot telefona kalendāram</button>
       </div>
     </section>
 
@@ -76,18 +76,18 @@
         </div>
         <label>Svarīgums
           <select name="priority">
-            <option value="auto">✨ Lai aplikācija izlemj</option>
-            <option value="3">🔥 Svarīgi</option>
-            <option value="2">● Vidēji</option>
-            <option value="1">○ Var pagaidīt</option>
+            <option value="auto">Lai aplikācija izlemj</option>
+            <option value="3">Svarīgi</option>
+            <option value="2">Vidēji</option>
+            <option value="1">Var pagaidīt</option>
           </select>
         </label>
         <label>Atkārtot
           <select name="repeat">
             <option value="none">Neatkārtot</option>
-            <option value="daily">🔁 Katru dienu</option>
-            <option value="weekly">🔁 Katru nedēļu</option>
-            <option value="monthly">🔁 Katru mēnesi</option>
+            <option value="daily">Katru dienu</option>
+            <option value="weekly">Katru nedēļu</option>
+            <option value="monthly">Katru mēnesi</option>
           </select>
         </label>
         <label>Apraksts / ko gribi panākt
@@ -96,7 +96,7 @@
         <label>Plāna punkti <small>(katrs savā rindā)</small>
           <textarea name="steps" rows="4" placeholder="Var atstāt tukšu un spiest „Sastādīt plānu”"></textarea>
         </label>
-        <button type="button" id="planBtn" class="secondary">✨ Sastādīt plānu no apraksta</button>
+        <button type="button" id="planBtn" class="secondary"><i data-icon="sparkle"></i> Sastādīt plānu no apraksta</button>
         <div class="actions">
           <button type="submit">Saglabāt</button>
           <button type="button" id="cancelEdit" class="secondary" hidden>Atcelt</button>
@@ -115,8 +115,8 @@
         <div class="row">
           <label>Kā apstrādāt?
             <select id="dumpMode">
-              <option value="ai">✨ Ar AI (Claude) — gudrāk, sastāda plānu</option>
-              <option value="local">⚡ Bez AI — ātri, telefonā</option>
+              <option value="ai">Ar AI (Claude) — gudrāk, sastāda plānu</option>
+              <option value="local">Bez AI — ātri, telefonā</option>
             </select>
           </label>
         </div>
@@ -137,6 +137,7 @@
 
   <div id="toast" class="toast" hidden></div>
 
+  <script src="icons.js"></script>
   <script src="parser.js"></script>
   <script src="game.js"></script>
   <script type="module" src="app.js"></script>
