@@ -1,5 +1,5 @@
-const CACHE = 'planotajs-v6';
-const FILES = ['./', 'index.html', 'app.js', 'parser.js', 'game.js', 'icons.js', 'style.css', 'manifest.json', 'icon.svg'];
+const CACHE = 'planotajs-v7';
+const FILES = ['./', 'index.html', 'app.js', 'parser.js', 'game.js', 'icons.js', 'store.js', 'ios.html', 'style.css', 'manifest.json', 'icon.svg'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));

@@ -1,5 +1,5 @@
 // Spēles daļa: XP, līmeņi, dienas/nedēļas questi, prasmju koks.
-(function () {
+window.storeReady.then(function () {
   const STORE = 'planotajs.game.v1';
   const TASKS_STORE = 'planotajs.tasks.v1';
   const KEY_STORE = 'planotajs.apikey';
@@ -273,6 +273,8 @@
 
   // ---------- AI personalizēti questi ----------
   async function personalize() {
+    const sample = await window.claudeSample;
+    if (sample) return personalizeWithSample(sample);
     let key = '';
     try { key = window.App ? window.App.cleanKey(localStorage.getItem(KEY_STORE)) : localStorage.getItem(KEY_STORE) || ''; } catch {}
     const problem = window.App ? window.App.keyProblem(key) : (key ? '' : 'x');
@@ -343,6 +345,48 @@
     } finally {
       btn.disabled = false; btn.innerHTML = icon('sparkle') + ' Personalizēt ar AI';
     }
+  }
+
+  function questPrompt() {
+    const recent = recentBySkill();
+    return `Tu esi draudzīgs dzīves treneris spēles stilā. Izveido personalizētus questus latviski.
+3 dienas questi (xp 15–40, izdarāmi vienā dienā, konkrēti) un 3 nedēļas questi (xp 80–150).
+Katrā grupā: 1 "should" — ko VAJADZĒTU (novārtā atstāta prasme), 1 "like" — kas PATIKTU pēc interesēm, 1 "bonus" — kaut kas jauns.
+"why" — viens īss teikums (vari uzrunāt vārdā). Pielāgo vecumam. Esi iedrošinošs, ne moralizējošs.
+Prasmes (skill): ${SKILLS.map(s => `${s.id} (${s.name})`).join(', ')}.
+
+Vārds: ${user.name || '(nav)'}, vecums: ${user.age || '(nav)'}
+Intereses: ${(user.interests || []).join(', ') || '(nav)'}
+Gribu uzlabot: ${(user.focus || []).map(f => SKILL[f].name).join(', ') || '(nav)'}
+Par mani: ${user.about || '(nav)'}
+Prasmju līmeņi: ${SKILLS.map(s => `${s.name} ${skillLevel(s.id)}`).join(', ')}
+XP pēdējās 2 nedēļās: ${SKILLS.map(s => `${s.name} ${recent[s.id]}`).join(', ')}
+Nesenie uzdevumi: ${recentTasks().map(t => t.title).slice(-20).join('; ') || '(nav)'}
+Šodien: ${todayKey()}
+
+Atbildi tikai ar JSON: {"daily":[{"title":"","skill":"","xp":25,"kind":"should","why":""}],"weekly":[...]}`;
+  }
+  function applyAiQuests(data) {
+    const norm = (arr, kind, lo, hi) => (Array.isArray(arr) ? arr : []).slice(0, 3).filter(q => q && q.title).map((q, i) => ({
+      id: `ai${kind[0]}${i}${Date.now() % 1000}`, s: SKILL[q.skill] ? q.skill : 'miers', t: String(q.title),
+      xp: Math.max(lo, Math.min(hi, q.xp | 0)), k: [], kind: ['should', 'like', 'bonus'].includes(q.kind) ? q.kind : 'bonus', why: String(q.why || ''), done: false,
+    }));
+    const keepDone = kind => st.quests[kind].filter(q => q.done);
+    const d = norm(data.daily, 'daily', 15, 40), w = norm(data.weekly, 'weekly', 80, 150);
+    if (!d.length && !w.length) throw new Error('tukša atbilde');
+    if (d.length) { st.quests.daily = [...keepDone('daily'), ...d].slice(0, Math.max(3, keepDone('daily').length)); st.quests.aiDaily = true; }
+    if (w.length) { st.quests.weekly = [...keepDone('weekly'), ...w].slice(0, Math.max(3, keepDone('weekly').length)); st.quests.aiWeekly = true; }
+    save(); renderAll();
+    toast(`Questi pielāgoti${user.name ? ' tev, ' + user.name : ''}`);
+  }
+  async function personalizeWithSample(sample) {
+    const btn = document.querySelector('#aiQuests');
+    btn.disabled = true; btn.textContent = 'Claude domā, kas tev der…';
+    try { applyAiQuests(await sample.json(questPrompt(), { modelTier: 'default', cache: false })); }
+    catch (e) {
+      const m = { not_granted: 'Tu neatļāvi lietot Claude.', rate_limited: 'Claude limits sasniegts — pamēģini vēlāk.', invalid_json: 'Claude atbilde nebija pareizā formā — pamēģini vēlreiz.' };
+      if (!e || e.code !== 'cancelled') toast(m[e && e.code] || 'Claude šobrīd neatbild — pamēģini vēlreiz.');
+    } finally { btn.disabled = false; btn.innerHTML = icon('sparkle') + ' Personalizēt ar AI'; }
   }
 
   // ---------- UI ----------
@@ -527,8 +571,8 @@
       saveUser(); refreshQuests(); renderAll(); close();
       toast(first ? `Prieks iepazīties, ${name}!` : 'Konts saglabāts');
     });
-    el.querySelector('#accWipe')?.addEventListener('click', () => {
-      if (!confirm('Dzēst kontu, visus uzdevumus un progresu? To nevarēs atsaukt.')) return;
+    el.querySelector('#accWipe')?.addEventListener('click', async () => {
+      if (!(await window.askConfirm('Dzēst kontu, visus uzdevumus un progresu? To nevarēs atsaukt.', 'Dzēst visu'))) return;
       try { Object.keys(localStorage).filter(k => k.startsWith('planotajs.')).forEach(k => localStorage.removeItem(k)); } catch {}
       location.reload();
     });
@@ -537,9 +581,10 @@
   function renderAll() { applyUser(); renderPlayer(); renderQuests(); renderTree(); }
 
   window.Game = { openAccount, user: () => user, award, awardForTask, renderAll, SKILLS, CAT_SKILL, colorFor: cat => SKILL[CAT_SKILL[cat] || 'miers'].color, bumpStreak: () => { bumpStreak(); save(); renderPlayer(); } };
-  document.addEventListener('DOMContentLoaded', () => {
+  const boot = () => {
     ensureQuests(); renderAll();
     if (!user.name && !user.skipped) openAccount(true);
-  });
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) renderAll(); });
-})();
+});

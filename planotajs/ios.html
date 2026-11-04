@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="lv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Plānotājs → iPhone</title>
+  <meta name="robots" content="noindex">
+  <style>
+    :root { color-scheme: dark; --bg: #0a0f1e; --ink: #e9edf7; --muted: #8a94b2; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: radial-gradient(700px 400px at 80% 0%, rgba(99, 102, 241, .3), transparent 60%), var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, sans-serif; padding: 24px max(16px, env(safe-area-inset-right)) 24px max(16px, env(safe-area-inset-left)); box-sizing: border-box; }
+    main { max-width: 380px; text-align: center; }
+    h1 { font: 600 1.5rem Georgia, serif; margin: 0 0 8px; }
+    p { color: var(--muted); margin: 0 0 20px; }
+    a.btn { display: inline-block; padding: 14px 24px; border-radius: 999px; font-weight: 600; text-decoration: none; color: #120a24; background: linear-gradient(135deg, #f472b6, #a78bfa 50%, #60a5fa); }
+    .err { color: #ffa38f; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1 id="h">Ielieku iPhone kalendārā…</h1>
+    <p id="p">Atveras Īsceļi. Ja nekas nenotiek, spied pogu.</p>
+    <a class="btn" id="go" href="#">Palaist īsceļu</a>
+  </main>
+  <script>
+    // Dati nāk saites daļā pēc # — tie netiek sūtīti uz serveri.
+    (function () {
+      const m = location.hash.match(/[#&]d=([A-Za-z0-9_-]+)/);
+      const h = document.getElementById('h'), p = document.getElementById('p'), go = document.getElementById('go');
+      if (!m) { h.textContent = 'Nav ko ielikt'; p.textContent = 'Šo lapu atver plānotājs.'; p.className = 'err'; go.hidden = true; return; }
+      let data;
+      try {
+        const b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
+        data = JSON.parse(decodeURIComponent(escape(atob(b64 + '==='.slice((b64.length + 3) % 4)))));
+      } catch (e) { h.textContent = 'Saite ir bojāta'; p.textContent = 'Mēģini vēlreiz no plānotāja.'; p.className = 'err'; go.hidden = true; return; }
+      const name = String(data.n || 'Plānotājs');
+      const text = JSON.stringify({ items: data.items || [] });
+      const url = 'shortcuts://run-shortcut?name=' + encodeURIComponent(name) + '&input=text&text=' + encodeURIComponent(text);
+      const n = (data.items || []).length;
+      p.textContent = `${n} ${n === 1 ? 'ieraksts' : 'ieraksti'} → īsceļš „${name}”. Ja nekas nenotiek, spied pogu.`;
+      go.href = url;
+      history.replaceState(null, '', location.pathname); // neatstāj datus vēsturē
+      setTimeout(() => { location.href = url; }, 250);
+    })();
+  </script>
+</body>
+</html>

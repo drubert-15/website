@@ -1,3 +1,5 @@
+await window.storeReady;
+const IN_CLAUDE = !!window.IN_CLAUDE;
 const { SHELVES } = window.LocalParser;
 const STORE = 'planotajs.tasks.v1';
 const KEY_STORE = 'planotajs.apikey';
@@ -176,7 +178,7 @@ $('#list').addEventListener('click', e => {
     save(); render(); return;
   }
   const act = e.target.closest('button')?.dataset.act;
-  if (act === 'del' && confirm(`Dzēst „${t.title}”?`)) { tasks = tasks.filter(x => x !== t); save(); render(); }
+  if (act === 'del') window.askConfirm(`Dzēst „${t.title}”?`, 'Dzēst').then(ok => { if (ok) { tasks = tasks.filter(x => x !== t); save(); render(); } });
   if (act === 'edit') editTask(t);
   if (act === 'ics') shareIcs([t], t.title);
 });
@@ -231,7 +233,19 @@ $('#planBtn').addEventListener('click', async () => {
   const key = (() => { try { const k = cleanKey(localStorage.getItem(KEY_STORE)); return keyProblem(k) ? '' : k; } catch { return ''; } })();
   const btn = $('#planBtn');
   let steps = [];
-  if (key) {
+  const sample = await window.claudeSample;
+  if (sample) {
+    btn.disabled = true; btn.textContent = 'Claude sastāda plānu…';
+    try {
+      const r = await sample.json(`Sastādi 3–7 īsus, konkrētus, secīgus plāna punktus latviski (katrs līdz ~8 vārdiem, sākas ar darbības vārdu).
+Uzdevums: ${title}
+Atkārtojas: ${REPEAT_LABEL[form.repeat.value] || 'nē'}
+Apraksts: ${note || '(nav)'}
+Atbildi tikai ar JSON masīvu, piemēram: ["Atkārtot konspektu", "Izpildīt testu"]`, { modelTier: 'quick' });
+      steps = (Array.isArray(r) ? r : r && r.steps || []).map(String).filter(Boolean).slice(0, 8);
+    } catch (e) { if (e && e.code !== 'cancelled') toast(sampleErrorText(e)); }
+    finally { btn.disabled = false; btn.innerHTML = icon('sparkle') + ' Sastādīt plānu no apraksta'; }
+  } else if (key) {
     btn.disabled = true; btn.textContent = 'Sastādu plānu…';
     try { steps = await planWithClaude(title, note, form.repeat.value, key); }
     catch (err) { toast('AI neizdevās: ' + aiErrorText(err)); }
@@ -240,7 +254,7 @@ $('#planBtn').addEventListener('click', async () => {
   if (!steps.length) steps = window.LocalParser.splitSteps(note || title);
   if (!steps.length) return toast('Uzraksti aprakstu ar vairāk detaļām');
   form.steps.value = steps.join('\n');
-  if (!key) toast('Sadalīju pa punktiem. Gudrākam plānam pievieno AI atslēgu „Iemest tekstu” sadaļā.');
+  if (!key && !sample) toast('Sadalīju pa punktiem. Gudrākam plānam atver plānotāju Claude aplikācijā.');
 });
 
 // ---------- Iemest tekstu ----------
@@ -288,6 +302,7 @@ $('#parseBtn').addEventListener('click', async () => {
   const status = $('#dumpStatus');
   const btn = $('#parseBtn');
   let result;
+  if (mode === 'claude' && IN_CLAUDE) { await parseWithSample(text); return; }
   if (mode === 'claude') { startClaudeBridge(text); return; }
   if (mode === 'ai') {
     const key = cleanKey(keyInput.value);
@@ -354,6 +369,41 @@ function showClaudeBox() {
   setTimeout(() => $('#claudeBox').scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
 }
 
+// Claude aplikācijā: AI tieši caur lietotāja Claude kontu, bez atslēgas.
+const SAMPLE_ERR = {
+  not_granted: 'Tu neatļāvi plānotājam lietot Claude. Atļauj to, kad Claude jautā, vai lieto „Bez AI”.',
+  sampling_disabled: 'Claude šim kontam nav pieejams.',
+  rate_limited: 'Claude lietošanas limits sasniegts. Pamēģini pēc brīža.',
+  session_expired: 'Pieslēdzies Claude no jauna.',
+  refused: 'Claude atteicās apstrādāt šo tekstu. Pamēģini to pārrakstīt.',
+  invalid_json: 'Claude atbilde nebija pareizā formā. Pamēģini vēlreiz.',
+  prompt_too_large: 'Teksts ir par garu. Iemet mazāku daļu.',
+};
+const sampleErrorText = e => SAMPLE_ERR[e && e.code] || 'Claude šobrīd neatbild. Pamēģini vēlreiz.';
+async function parseWithSample(text) {
+  const status = $('#dumpStatus'), btn = $('#parseBtn');
+  const sample = await window.claudeSample;
+  if (!sample) { status.textContent = 'Claude šeit nav pieejams — izmantoju ātro režīmu.'; showLocal(text); return; }
+  btn.disabled = true; status.textContent = 'Claude lasa tekstu…';
+  try {
+    const data = await sample.json(claudePrompt(text), { modelTier: 'default', effort: 'low' });
+    const result = readClaudeReply(JSON.stringify(data));
+    if (!result || !result.tasks.length) { status.textContent = 'Claude tekstā neatrada uzdevumus.'; return; }
+    status.textContent = '';
+    preview = result.tasks.map(t => ({ ...t, include: true, remind: 15 }));
+    renderPreview(result.summary);
+  } catch (e) {
+    if (e && e.code === 'cancelled') { status.textContent = ''; return; }
+    status.textContent = sampleErrorText(e) + ' Pagaidām saliku ātrajā režīmā.';
+    showLocal(text);
+  } finally { btn.disabled = false; }
+}
+function showLocal(text) {
+  const result = window.LocalParser.parse(text);
+  preview = result.tasks.map(t => ({ ...t, priority: Number(t.priority) || window.LocalParser.guessPriority(t.title, t.category), repeat: t.repeat || 'none', steps: t.steps || [], include: true, remind: 15 }));
+  renderPreview(result.summary);
+}
+
 // Izvelk JSON no Claude atbildes (arī ja tai apkārt ir teksts vai koda bloks).
 function readClaudeReply(raw) {
   const txt = String(raw || '').trim();
@@ -414,11 +464,16 @@ $('#reopenClaude').addEventListener('click', async () => {
   openClaude(p);
 });
 // Rāda/slēpj atslēgas iestatījumus pēc izvēlētā režīma
+if (IN_CLAUDE) {
+  $('#dumpMode').querySelector('option[value="ai"]')?.remove();
+  $('#dumpMode').querySelector('option[value="claude"]').textContent = 'Ar Claude AI — gudri, bez atslēgas';
+  $('#claudeHint').textContent = 'Claude izlasīs tekstu, atradīs uzdevumus un saliks pa plauktiņiem. Pirmajā reizē Claude pajautās atļauju.';
+}
 function syncDumpMode() {
   const m = $('#dumpMode').value;
   $('#keyBox').hidden = m !== 'ai';
   $('#claudeHint').hidden = m !== 'claude';
-  $('#parseBtn').textContent = m === 'claude' ? 'Atvērt Claude' : 'Salikt pa plauktiņiem';
+  $('#parseBtn').textContent = m === 'claude' && !IN_CLAUDE ? 'Atvērt Claude' : 'Salikt pa plauktiņiem';
 }
 $('#dumpMode').addEventListener('change', () => { syncDumpMode(); try { localStorage.setItem('planotajs.dumpMode', $('#dumpMode').value); } catch {} });
 try { const m = localStorage.getItem('planotajs.dumpMode'); if (m && [...$('#dumpMode').options].some(o => o.value === m)) $('#dumpMode').value = m; } catch {}
@@ -426,7 +481,7 @@ syncDumpMode();
 // iPhone var pārlādēt aplikāciju, kamēr esi Claude — tad atjauno 2. soli.
 try {
   const pend = JSON.parse(localStorage.getItem(PENDING) || 'null');
-  if (pend && Date.now() - pend.at < 3 * 3600000) { if (pend.text) $('#dumpText').value = pend.text; setTimeout(() => { showView('dump'); showClaudeBox(); }, 0); }
+  if (!IN_CLAUDE && pend && Date.now() - pend.at < 3 * 3600000) { if (pend.text) $('#dumpText').value = pend.text; setTimeout(() => { showView('dump'); showClaudeBox(); }, 0); }
 } catch {}
 
 function renderPreview(summary) {
@@ -606,7 +661,7 @@ $('#exportAll').addEventListener('click', () => shareIcs(tasks.filter(t => !t.do
 
 // ---------- Paziņojumi ----------
 let swReg = null;
-if ('serviceWorker' in navigator) {
+if (!IN_CLAUDE && 'serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').then(r => { swReg = r; scheduleTriggers(); }).catch(() => {});
 }
 function updateNotifyBtn() {
@@ -720,13 +775,38 @@ function iosItems(all) {
   }
   return items;
 }
+const RELAY = 'https://drubert-15.github.io/website/planotajs/ios.html';
+function relayUrl(items) {
+  const json = JSON.stringify({ n: ios.name, items: items.map(({ key, ...rest }) => rest) });
+  const b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return `${RELAY}#d=${b64}`;
+}
+// Claude aplikācijā īsceļu tieši palaist nevar — atver to caur saiti (Safari → Īsceļi).
+function showRelay(items, label) {
+  document.querySelector('.relay-sheet')?.remove();
+  const el = document.createElement('div');
+  el.className = 'account relay-sheet';
+  el.innerHTML = `<div class="acc-card"><div class="acc-head"><div class="acc-avatar">${icon('calPlus')}</div>
+    <div><h2>${esc(label)}</h2><p class="hint">Spied pogu — atvērsies Safari un palaidīs īsceļu „${esc(ios.name)}”. Pēc tam atgriezies Claude.</p></div></div>
+    <div class="actions"><a class="primary btn-link" href="${relayUrl(items)}" target="_blank" rel="noopener" id="relayGo">Ielikt iPhone kalendārā</a>
+    <button type="button" class="secondary" id="relayLater">Vēlāk</button></div></div>`;
+  document.body.appendChild(el);
+  const close = () => el.remove();
+  el.querySelector('#relayGo').addEventListener('click', () => {
+    items.forEach(i => { if (i.key) ios.synced[i.key] = Date.now(); });
+    saveIos(); setTimeout(() => { close(); renderIosBar(); }, 300);
+  });
+  el.querySelector('#relayLater').addEventListener('click', close);
+}
 function runShortcut(items) {
+  if (IN_CLAUDE) { showRelay(items, 'Ielikt iPhone kalendārā'); return; }
   const payload = JSON.stringify({ items: items.map(({ key, ...rest }) => rest) });
   location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(ios.name)}&input=text&text=${encodeURIComponent(payload)}`;
 }
 function sendToIphone(all = false) {
   const items = iosItems(all);
   if (!items.length) { toast('Viss jau ir iPhone kalendārā'); renderIosBar(); return; }
+  if (IN_CLAUDE) { showRelay(items, `Ielikt iPhone kalendārā (${items.length})`); return; }
   items.forEach(i => (ios.synced[i.key] = Date.now()));
   // Vecus ierakstus no saraksta izmet, lai tas neaug bezgalīgi
   const cut = Date.now() - 60 * 86400000;
@@ -738,7 +818,7 @@ function sendToIphone(all = false) {
 }
 function iosAfterSave() {
   renderIosBar();
-  if (ios.set && ios.auto && iosItems(false).length) setTimeout(() => sendToIphone(false), 900);
+  if (ios.set && ios.auto && iosItems(false).length) setTimeout(() => sendToIphone(false), IN_CLAUDE ? 300 : 900);
 }
 function renderIosBar() {
   const bar = $('#iosBar');
