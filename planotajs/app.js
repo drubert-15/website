@@ -843,17 +843,19 @@ function openIosSetup() {
         <p class="hint">Plānotājs ieliks uzdevumus iPhone Kalendārā un Reminders ar atgādinājumu. Paziņojumus sūtīs pats iPhone — arī tad, ja plānotājs ir aizvērts.</p></div>
       </div>
       ${isIphone ? '' : '<p class="hint warn">Šī iespēja strādā tikai iPhone vai iPad telefonā.</p>'}
-      <h3>Vienreiz izveido īsceļu (~5 min)</h3>
+      <h3>Vienreiz izveido īsceļu (~10 min)</h3>
+      <p class="hint">Darbību nosaukumi ir angliski — tieši tā tie redzami Īsceļos. Darbību meklē apakšā lodziņā <b>Search for actions</b>.</p>
       <ol class="setup-steps">
-        <li>Atver aplikāciju <b>Īsceļi</b> (Shortcuts) → <b>+</b> augšā. Nosauc to <b>${esc(ios.name)}</b>.</li>
-        <li>Pievieno darbību <b>Get Dictionary from Input</b> (Iegūt vārdnīcu no ievades). Ievade: <i>Shortcut Input</i>.<br><small>Ja jautā, kāda ievade: ieslēdz <b>Text</b>.</small></li>
-        <li><b>Get Dictionary Value</b> → atslēga <code>items</code>, no <i>Dictionary</i>.</li>
-        <li><b>Repeat with Each</b> → ar <i>Dictionary Value</i>.</li>
-        <li>Iekšā atkārtojumā pievieno 5× <b>Get Dictionary Value</b> no <i>Repeat Item</i> ar atslēgām: <code>title</code>, <code>start</code>, <code>end</code>, <code>alert</code>, <code>notes</code>.</li>
-        <li><b>Add New Event</b> (Kalendārs): Title = <code>title</code>, Start Date = <code>start</code>, End Date = <code>end</code>, Notes = <code>notes</code>. Alert: <b>None</b>.</li>
-        <li><b>Add New Reminder</b>: Title = <code>title</code>, Notes = <code>notes</code>, ieslēdz <b>Remind Me</b> → <b>At Time</b> = <code>alert</code>.</li>
-        <li>Pēc <i>End Repeat</i> vari pievienot <b>Show Notification</b> „Pievienots plānotājā”.</li>
-        <li>Pirmajā reizē iPhone jautās atļauju piekļūt Kalendāram un Reminders — atļauj.</li>
+        <li><b>Jauns īsceļš.</b> Atver <b>Shortcuts</b> → augšā labajā stūrī <b>+</b>. Augšā pieskaries nosaukumam → <b>Rename</b> → ieraksti <b>${esc(ios.name)}</b>.</li>
+        <li><b>1. darbība.</b> Meklē <code>dictionary from</code> → pieskaries <b>Get Dictionary from Input</b>. Ja zilais vārds ir <i>Input</i>, pieskaries tam → izvēlies <b>Shortcut Input</b>.</li>
+        <li><b>2. darbība.</b> Meklē <code>dictionary value</code> → pieskaries <b>Get Dictionary Value</b>. Tajā rindā pieskaries zilajam <i>Key</i> → ieraksti <code>items</code>.</li>
+        <li><b>3. darbība.</b> Meklē <code>repeat</code> → pieskaries <b>Repeat with Each</b>. Parādīsies divas rindas: <i>Repeat with each…</i> un apakšā <i>End Repeat</i>.</li>
+        <li><b>Vēl 6 darbības</b> (pagaidām neko tajās nemaini): 4× <b>Get Dictionary Value</b>, tad <b>Add New Event</b>, tad <b>Add New Reminder</b>. Tās nonāks pašā apakšā.</li>
+        <li><b>Pārvieto End Repeat.</b> Turi pirkstu uz <i>End Repeat</i> un velc to uz pašu apakšu. Tagad visas 6 jaunās darbības ir starp <i>Repeat</i> un <i>End Repeat</i>.</li>
+        <li><b>Aizpildi 4 Get Dictionary Value</b> (tās, kas iekšā): katrā <i>Key</i> ieraksti pēc kārtas <code>title</code>, <code>start</code>, <code>end</code>, <code>alert</code>. Katrā pieskaries zilajam <i>Dictionary</i> / <i>Dictionary Value</i> → izvēlies <b>Repeat Item</b>.</li>
+        <li><b>Add New Event.</b> Pieskaries laukam <i>Event</i> (nosaukums) → virs tastatūras <b>Select Variable</b> → pieskaries darbības ar <code>title</code> zilajam rezultātam. Tāpat sākuma laikam → darbība ar <code>start</code>, beigu laikam → <code>end</code>. Atver <b>Show More</b> → <i>Alert</i>: <b>None</b>.</li>
+        <li><b>Add New Reminder.</b> Laukam <i>Reminder</i> → <b>Select Variable</b> → <code>title</code>. <b>Show More</b> → ieslēdz <b>Remind Me</b> → <b>At a Time</b> → pieskaries laikam → <b>Select Variable</b> → <code>alert</code>.</li>
+        <li>Augšā <b>Done</b>. Atgriezies šeit un spied <b>Pārbaudīt ar testu</b>. Kad iPhone jautā atļauju Kalendāram un Reminders, spied <b>Allow</b>.</li>
       </ol>
       <label>Īsceļa nosaukums <input id="iosName" value="${esc(ios.name)}" autocomplete="off"></label>
       <label class="toggle"><input type="checkbox" id="iosAuto" ${ios.auto ? 'checked' : ''}> Automātiski sūtīt jaunus uzdevumus pēc saglabāšanas</label>
