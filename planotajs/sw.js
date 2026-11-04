@@ -1,4 +1,4 @@
-const CACHE = 'planotajs-v5';
+const CACHE = 'planotajs-v6';
 const FILES = ['./', 'index.html', 'app.js', 'parser.js', 'game.js', 'icons.js', 'style.css', 'manifest.json', 'icon.svg'];
 
 self.addEventListener('install', e => {

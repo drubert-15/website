@@ -335,3 +335,14 @@ h1 { font-size: 1.8rem; }
 .step-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-family: var(--serif); font-size: 1.1rem; }
 .step-no { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font: 700 .9rem var(--sans); color: #120a24; background: linear-gradient(135deg, #fb923c, #f472b6); }
 [hidden] { display: none !important; }
+
+.ios-bar { padding: 12px 14px; background: linear-gradient(110deg, rgba(96, 165, 250, .2), rgba(45, 212, 191, .12)); }
+.ios-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: .9rem; }
+.ios-row span { display: inline-flex; align-items: center; gap: 6px; }
+.ios-row .ic { color: #93c5fd; }
+.ios-row button { padding: 8px 16px; }
+.ios-setup h3 { font: 600 1.05rem var(--serif); margin: 6px 0 8px; }
+.setup-steps { margin: 0 0 16px; padding-left: 22px; display: grid; gap: 8px; font-size: .9rem; color: #cfd6ea; }
+.setup-steps code { background: rgba(255, 255, 255, .08); padding: 1px 6px; border-radius: 6px; font-size: .85em; color: #f0abfc; }
+.setup-steps small { color: var(--muted); }
+.hint.warn { color: var(--warn); }

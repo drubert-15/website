@@ -221,6 +221,7 @@ form.addEventListener('submit', e => {
   save(); scheduleTriggers(); resetForm();
   toast(existing ? 'Izmaiņas saglabātas' : 'Pievienots ✓');
   showView('list');
+  iosAfterSave();
 });
 resetForm();
 
@@ -485,6 +486,7 @@ function savePreview() {
   preview = []; $('#dumpResult').innerHTML = ''; $('#dumpText').value = '';
   toast(`Pievienoti ${chosen.length} uzdevumi ✓`);
   showView('list');
+  iosAfterSave();
 }
 
 // AI režīms: Claude izvelk uzdevumus kā strukturētu JSON.
@@ -681,6 +683,121 @@ try {
   if (ios && !standalone && !localStorage.getItem('planotajs.hideInstall')) $('#installHint').hidden = false;
 } catch {}
 $('#hideInstall').addEventListener('click', () => { $('#installHint').hidden = true; try { localStorage.setItem('planotajs.hideInstall', '1'); } catch {} });
+
+// ---------- iPhone kalendārs un Reminders (caur Īsceļiem / Shortcuts) ----------
+// Plānotājs nodod jaunos ierakstus īsceļam „Plānotājs”, kas tos ieliek Kalendārā
+// un Reminders. Paziņojumus tad sūta pats iPhone — arī ar aizvērtu plānotāju.
+const IOS_STORE = 'planotajs.ios.v1';
+let ios = { set: false, auto: true, name: 'Plānotājs', synced: {} };
+try { ios = { ...ios, ...(JSON.parse(localStorage.getItem(IOS_STORE)) || {}) }; } catch {}
+const saveIos = () => { try { localStorage.setItem(IOS_STORE, JSON.stringify(ios)); } catch {} };
+
+// Laiks ar laika joslu, ko Īsceļi droši saprot: 2026-11-05T09:00:00+02:00
+function isoLocal(d) {
+  const off = -d.getTimezoneOffset(), sign = off >= 0 ? '+' : '-', a = Math.abs(off);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00${sign}${pad(Math.floor(a / 60))}:${pad(a % 60)}`;
+}
+// Atkārtotiem uzdevumiem nosūta tuvākās reizes (dienas — 7, nedēļas — 4, mēneša — 3).
+function occurrences(t) {
+  const n = { daily: 7, weekly: 4, monthly: 3 }[t.repeat] || 1;
+  const out = [], copy = { ...t, steps: [] };
+  for (let i = 0; i < n; i++) { out.push({ date: copy.date, time: copy.time }); if (n > 1) advance(copy); }
+  return out;
+}
+function iosItems(all) {
+  const now = Date.now(), items = [];
+  for (const t of tasks) {
+    if (t.done) continue;
+    for (const o of occurrences(t)) {
+      const start = new Date(`${o.date}T${o.time || '09:00'}`);
+      if (start.getTime() < now - 3600000) continue;
+      const key = `${t.id}|${o.date}|${o.time}|${t.title}`;
+      if (!all && ios.synced[key]) continue;
+      const alert = new Date(start.getTime() - (Number(t.remind) || 0) * 60000);
+      const notes = [t.note, ...(t.steps || []).map(x => '☐ ' + x.text), `Plauktiņš: ${t.category}`].filter(Boolean).join('\n');
+      items.push({ key, title: t.title, start: isoLocal(start), end: isoLocal(new Date(start.getTime() + 3600000)), alert: isoLocal(alert), notes });
+    }
+  }
+  return items;
+}
+function runShortcut(items) {
+  const payload = JSON.stringify({ items: items.map(({ key, ...rest }) => rest) });
+  location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(ios.name)}&input=text&text=${encodeURIComponent(payload)}`;
+}
+function sendToIphone(all = false) {
+  const items = iosItems(all);
+  if (!items.length) { toast('Viss jau ir iPhone kalendārā'); renderIosBar(); return; }
+  items.forEach(i => (ios.synced[i.key] = Date.now()));
+  // Vecus ierakstus no saraksta izmet, lai tas neaug bezgalīgi
+  const cut = Date.now() - 60 * 86400000;
+  for (const k of Object.keys(ios.synced)) if (ios.synced[k] < cut) delete ios.synced[k];
+  saveIos();
+  toast(`Sūtu uz iPhone: ${items.length}`);
+  setTimeout(() => runShortcut(items), 400);
+  renderIosBar();
+}
+function iosAfterSave() {
+  renderIosBar();
+  if (ios.set && ios.auto && iosItems(false).length) setTimeout(() => sendToIphone(false), 900);
+}
+function renderIosBar() {
+  const bar = $('#iosBar');
+  const n = ios.set ? iosItems(false).length : 0;
+  bar.hidden = !n;
+  if (!n) return;
+  bar.innerHTML = `<div class="ios-row"><span>${icon('calPlus')}<b>${n}</b> ${n === 1 ? 'ieraksts nav' : 'ieraksti nav'} iPhone kalendārā</span>
+    <button type="button" class="primary" id="iosSendNow">Sūtīt</button></div>`;
+  $('#iosSendNow').addEventListener('click', () => sendToIphone(false));
+}
+
+function openIosSetup() {
+  document.querySelector('.account')?.remove();
+  const el = document.createElement('div');
+  el.className = 'account';
+  const isIphone = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  el.innerHTML = `
+    <div class="acc-card ios-setup">
+      <div class="acc-head">
+        <div class="acc-avatar">${icon('calPlus')}</div>
+        <div><h2>iPhone kalendārs un Reminders</h2>
+        <p class="hint">Plānotājs ieliks uzdevumus iPhone Kalendārā un Reminders ar atgādinājumu. Paziņojumus sūtīs pats iPhone — arī tad, ja plānotājs ir aizvērts.</p></div>
+      </div>
+      ${isIphone ? '' : '<p class="hint warn">Šī iespēja strādā tikai iPhone vai iPad telefonā.</p>'}
+      <h3>Vienreiz izveido īsceļu (~5 min)</h3>
+      <ol class="setup-steps">
+        <li>Atver aplikāciju <b>Īsceļi</b> (Shortcuts) → <b>+</b> augšā. Nosauc to <b>${esc(ios.name)}</b>.</li>
+        <li>Pievieno darbību <b>Get Dictionary from Input</b> (Iegūt vārdnīcu no ievades). Ievade: <i>Shortcut Input</i>.<br><small>Ja jautā, kāda ievade: ieslēdz <b>Text</b>.</small></li>
+        <li><b>Get Dictionary Value</b> → atslēga <code>items</code>, no <i>Dictionary</i>.</li>
+        <li><b>Repeat with Each</b> → ar <i>Dictionary Value</i>.</li>
+        <li>Iekšā atkārtojumā pievieno 5× <b>Get Dictionary Value</b> no <i>Repeat Item</i> ar atslēgām: <code>title</code>, <code>start</code>, <code>end</code>, <code>alert</code>, <code>notes</code>.</li>
+        <li><b>Add New Event</b> (Kalendārs): Title = <code>title</code>, Start Date = <code>start</code>, End Date = <code>end</code>, Notes = <code>notes</code>. Alert: <b>None</b>.</li>
+        <li><b>Add New Reminder</b>: Title = <code>title</code>, Notes = <code>notes</code>, ieslēdz <b>Remind Me</b> → <b>At Time</b> = <code>alert</code>.</li>
+        <li>Pēc <i>End Repeat</i> vari pievienot <b>Show Notification</b> „Pievienots plānotājā”.</li>
+        <li>Pirmajā reizē iPhone jautās atļauju piekļūt Kalendāram un Reminders — atļauj.</li>
+      </ol>
+      <label>Īsceļa nosaukums <input id="iosName" value="${esc(ios.name)}" autocomplete="off"></label>
+      <label class="toggle"><input type="checkbox" id="iosAuto" ${ios.auto ? 'checked' : ''}> Automātiski sūtīt jaunus uzdevumus pēc saglabāšanas</label>
+      <div class="actions">
+        <button type="button" class="primary" id="iosTest">Pārbaudīt ar testu</button>
+        <button type="button" class="secondary" id="iosDone">Gatavs</button>
+      </div>
+      ${ios.set ? `<button type="button" class="link" id="iosResend">Sūtīt visus nākamos uzdevumus vēlreiz</button>` : ''}
+      <p class="hint small">Labojumi un dzēšana plānotājā iPhone kalendārā nemainās — tur tos labo pats. Ja Kalendāra iestatījumos ir „Default Alert Times”, izslēdz tos, lai nenāk divi paziņojumi.</p>
+    </div>`;
+  document.body.appendChild(el);
+  const close = () => { el.classList.add('out'); setTimeout(() => el.remove(), 250); renderIosBar(); };
+  const keep = () => { ios.name = el.querySelector('#iosName').value.trim() || 'Plānotājs'; ios.auto = el.querySelector('#iosAuto').checked; };
+  el.querySelector('#iosTest').addEventListener('click', () => {
+    keep(); ios.set = true; saveIos();
+    const start = new Date(Date.now() + 5 * 60000); start.setSeconds(0, 0);
+    toast('Sūtu testu — pēc 5 min jāpienāk atgādinājumam');
+    setTimeout(() => runShortcut([{ title: 'Plānotāja tests', start: isoLocal(start), end: isoLocal(new Date(start.getTime() + 15 * 60000)), alert: isoLocal(start), notes: 'Ja šo redzi Kalendārā un Reminders, viss strādā. Šo vari izdzēst.' }]), 400);
+  });
+  el.querySelector('#iosDone').addEventListener('click', () => { keep(); ios.set = true; saveIos(); close(); if (iosItems(false).length) toast('Spied „Sūtīt”, lai ieliktu esošos uzdevumus iPhone'); });
+  el.querySelector('#iosResend')?.addEventListener('click', () => { keep(); saveIos(); close(); sendToIphone(true); });
+}
+$('#iosSetup').addEventListener('click', openIosSetup);
+renderIosBar();
 
 checkReminders();
 render();
