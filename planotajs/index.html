@@ -115,12 +115,14 @@
         <div class="row">
           <label>Kā apstrādāt?
             <select id="dumpMode">
-              <option value="ai">Ar AI (Claude) — gudrāk, sastāda plānu</option>
-              <option value="local">Bez AI — ātri, telefonā</option>
+              <option value="claude">Ar Claude aplikāciju — gudri, bez atslēgas</option>
+              <option value="local">Bez AI — ātri, uzreiz telefonā</option>
+              <option value="ai">Ar API atslēgu — automātiski</option>
             </select>
           </label>
         </div>
-        <details id="keyBox">
+        <p id="claudeHint" class="hint">Plānotājs atvērs Claude ar tavu tekstu. Kad Claude atbild, nokopē atbildi un ielīmē to šeit — viss saliksies pa plauktiņiem. Vajag tikai Claude kontu.</p>
+        <details id="keyBox" hidden>
           <summary>AI iestatījumi (API atslēga)</summary>
           <p class="hint">AI režīmam vajag Anthropic <b>API atslēgu</b> — tā sākas ar <code>sk-ant-api…</code>. Izveido to <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">platform.claude.com → API Keys</a> (kontā vajag kredītu). Claude.ai abonements te neder. Atslēga glabājas tikai šajā ierīcē.</p>
           <input id="apiKey" type="password" placeholder="sk-ant-..." autocomplete="off">
@@ -130,6 +132,16 @@
           <button id="parseBtn" type="button">Salikt pa plauktiņiem</button>
         </div>
         <p id="dumpStatus" class="hint"></p>
+      </div>
+      <div id="claudeBox" class="card claude-box" hidden>
+        <div class="step-head"><span class="step-no">2</span><strong>Ielīmē Claude atbildi</strong></div>
+        <p class="hint">Claude atvērās ar tavu tekstu. Ja tur ir tukšs lodziņš, ielīmē tajā (teksts jau ir nokopēts). Kad Claude atbild, nospied <b>Copy</b> pie atbildes un atgriezies šeit.</p>
+        <textarea id="claudeReply" rows="5" placeholder="Ielīmē šeit Claude atbildi…"></textarea>
+        <div class="actions">
+          <button type="button" class="primary" id="useReply">Salikt pa plauktiņiem</button>
+          <button type="button" class="secondary" id="pasteReply"><i data-icon="inbox"></i> Ielīmēt</button>
+          <button type="button" class="secondary" id="reopenClaude">Atvērt Claude vēlreiz</button>
+        </div>
       </div>
       <div id="dumpResult"></div>
     </section>

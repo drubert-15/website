@@ -330,3 +330,8 @@ button.link { background: none; padding: 6px 0; display: block; margin: 0 auto; 
 input, select, textarea { min-width: 0; max-width: 100%; }
 input[type=date], input[type=time] { -webkit-appearance: none; appearance: none; }
 h1 { font-size: 1.8rem; }
+
+.claude-box { background: linear-gradient(150deg, rgba(251, 146, 60, .16), rgba(244, 114, 182, .12) 50%, rgba(167, 139, 250, .1)); }
+.step-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-family: var(--serif); font-size: 1.1rem; }
+.step-no { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font: 700 .9rem var(--sans); color: #120a24; background: linear-gradient(135deg, #fb923c, #f472b6); }
+[hidden] { display: none !important; }

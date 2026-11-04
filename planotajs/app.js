@@ -287,6 +287,7 @@ $('#parseBtn').addEventListener('click', async () => {
   const status = $('#dumpStatus');
   const btn = $('#parseBtn');
   let result;
+  if (mode === 'claude') { startClaudeBridge(text); return; }
   if (mode === 'ai') {
     const key = cleanKey(keyInput.value);
     keyInput.value = key;
@@ -308,6 +309,124 @@ $('#parseBtn').addEventListener('click', async () => {
   preview = result.tasks.map(t => ({ ...t, priority: Number(t.priority) || window.LocalParser.guessPriority(t.title + ' ' + (t.note || ''), t.category), repeat: t.repeat || 'none', steps: t.steps || [], include: true, remind: 15 }));
   renderPreview(result.summary);
 });
+
+// ---------- AI bez atslēgas: caur lietotāja Claude aplikāciju ----------
+const PENDING = 'planotajs.pendingClaude';
+function claudePrompt(text) {
+  const now = new Date();
+  const nowStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}, ${DAYS[now.getDay()]}`;
+  const u = window.Game?.user?.() || {};
+  const who = u.name ? `Lietotājs: ${u.name}${u.age ? ', ' + u.age + ' g.' : ''}.\n` : '';
+  return `Tu esi mana plānotāja palīgs. No teksta zemāk izvelc visus uzdevumus un pasākumus.
+Tagad ir: ${nowStr}. ${who}
+Noteikumi:
+- Relatīvos datumus („rīt”, „piektdien”) pārvērt konkrētos datumos.
+- Ja laiks nav minēts, izvēlies saprātīgu un liec "uncertain": true.
+- category — viens no: ${SHELVES.join(', ')}.
+- priority: 3 svarīgi (termiņi, veselība, nauda), 2 parasti, 1 var pagaidīt.
+- repeat: none | daily | weekly | monthly.
+- steps: 2–6 īsi plāna punkti, ja uzdevums ir lielāks; citādi [].
+- Neizdomā uzdevumus, kuru tekstā nav. Raksti latviski.
+Atbildi TIKAI ar vienu JSON koda bloku šādā formā, bez paskaidrojumiem:
+{"summary":"1–2 teikumu kopsavilkums","tasks":[{"title":"","date":"YYYY-MM-DD","time":"HH:MM","category":"","priority":2,"repeat":"none","steps":[],"note":"","uncertain":false}]}
+
+Teksts:
+${text}`;
+}
+function openClaude(prompt) {
+  const url = 'https://claude.ai/new?q=' + encodeURIComponent(prompt);
+  // Ļoti garu tekstu saitē neliek — tad paļaujas uz nokopēto tekstu.
+  window.open(url.length < 7000 ? url : 'https://claude.ai/new', '_blank', 'noopener');
+}
+async function startClaudeBridge(text) {
+  const prompt = claudePrompt(text);
+  let copied = false;
+  try { await navigator.clipboard.writeText(prompt); copied = true; } catch {}
+  try { localStorage.setItem(PENDING, JSON.stringify({ prompt, text, at: Date.now() })); } catch {}
+  showClaudeBox();
+  openClaude(prompt);
+  $('#dumpStatus').textContent = copied ? 'Teksts nokopēts un Claude atvērts.' : 'Claude atvērts. Ja teksts tur neparādās, nokopē to no lodziņa augšā.';
+}
+function showClaudeBox() {
+  $('#claudeBox').hidden = false;
+  window.fillIcons?.($('#claudeBox'));
+  setTimeout(() => $('#claudeBox').scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+}
+
+// Izvelk JSON no Claude atbildes (arī ja tai apkārt ir teksts vai koda bloks).
+function readClaudeReply(raw) {
+  const txt = String(raw || '').trim();
+  const block = txt.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const body = block ? block[1] : txt;
+  const a = body.indexOf('{'), b = body.lastIndexOf('}');
+  if (a < 0 || b <= a) return null;
+  let data;
+  try { data = JSON.parse(body.slice(a, b + 1)); } catch { return null; }
+  const list = Array.isArray(data) ? data : data.tasks;
+  if (!Array.isArray(list)) return null;
+  const okDate = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : '';
+  const okTime = t => { const m = String(t || '').match(/^(\d{1,2}):(\d{2})/); return m && +m[1] < 24 && +m[2] < 60 ? `${pad(+m[1])}:${m[2]}` : ''; };
+  const tasks = list.filter(t => t && t.title).map(t => {
+    const date = okDate(t.date), time = okTime(t.time);
+    const category = SHELVES.includes(t.category) ? t.category : window.LocalParser.guessCategory(`${t.title} ${t.note || ''}`);
+    return {
+      title: String(t.title).slice(0, 140), date, time, category,
+      priority: [1, 2, 3].includes(Number(t.priority)) ? Number(t.priority) : window.LocalParser.guessPriority(t.title, category),
+      repeat: ['daily', 'weekly', 'monthly'].includes(t.repeat) ? t.repeat : 'none',
+      steps: Array.isArray(t.steps) ? t.steps.map(String).filter(Boolean).slice(0, 8) : [],
+      note: String(t.note || ''), uncertain: !!t.uncertain || !date || !time,
+    };
+  });
+  return { summary: String(data.summary || `Claude atrada ${tasks.length} uzdevumu(s).`), tasks };
+}
+function useClaudeReply() {
+  const raw = $('#claudeReply').value;
+  if (!raw.trim()) return toast('Vispirms ielīmē Claude atbildi');
+  let result = readClaudeReply(raw);
+  if (!result || !result.tasks.length) {
+    // Ja Claude atbildēja parastā tekstā, mēģina to saprast pats.
+    result = window.LocalParser.parse(raw.replace(/```[a-z]*|```/gi, ''));
+    if (!result.tasks.length) return toast('Atbildē neatradu uzdevumus — pārbaudi, vai ielīmēji visu');
+    toast('Atbilde nebija pareizā formā — saliku, kā sapratu');
+  }
+  try { localStorage.removeItem(PENDING); } catch {}
+  $('#claudeReply').value = '';
+  $('#claudeBox').hidden = true;
+  $('#dumpStatus').textContent = '';
+  preview = result.tasks.map(t => ({ ...t, include: true, remind: 15 }));
+  renderPreview(result.summary);
+}
+$('#useReply').addEventListener('click', useClaudeReply);
+$('#pasteReply').addEventListener('click', async () => {
+  try {
+    const t = await navigator.clipboard.readText();
+    if (!t) return toast('Starpliktuve ir tukša');
+    $('#claudeReply').value = t;
+    useClaudeReply();
+  } catch { toast('Ielīmē ar garo spiedienu lodziņā → Ielīmēt'); $('#claudeReply').focus(); }
+});
+$('#reopenClaude').addEventListener('click', async () => {
+  let p = '';
+  try { p = JSON.parse(localStorage.getItem(PENDING) || '{}').prompt || ''; } catch {}
+  if (!p) p = claudePrompt($('#dumpText').value.trim());
+  try { await navigator.clipboard.writeText(p); } catch {}
+  openClaude(p);
+});
+// Rāda/slēpj atslēgas iestatījumus pēc izvēlētā režīma
+function syncDumpMode() {
+  const m = $('#dumpMode').value;
+  $('#keyBox').hidden = m !== 'ai';
+  $('#claudeHint').hidden = m !== 'claude';
+  $('#parseBtn').textContent = m === 'claude' ? 'Atvērt Claude' : 'Salikt pa plauktiņiem';
+}
+$('#dumpMode').addEventListener('change', () => { syncDumpMode(); try { localStorage.setItem('planotajs.dumpMode', $('#dumpMode').value); } catch {} });
+try { const m = localStorage.getItem('planotajs.dumpMode'); if (m && [...$('#dumpMode').options].some(o => o.value === m)) $('#dumpMode').value = m; } catch {}
+syncDumpMode();
+// iPhone var pārlādēt aplikāciju, kamēr esi Claude — tad atjauno 2. soli.
+try {
+  const pend = JSON.parse(localStorage.getItem(PENDING) || 'null');
+  if (pend && Date.now() - pend.at < 3 * 3600000) { if (pend.text) $('#dumpText').value = pend.text; setTimeout(() => { showView('dump'); showClaudeBox(); }, 0); }
+} catch {}
 
 function renderPreview(summary) {
   const byShelf = {};
